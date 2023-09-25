@@ -1,5 +1,9 @@
 package diningphilosophers;
 
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
+
 public class ChopStick {
 
     private static int stickCount = 0;
@@ -10,23 +14,33 @@ public class ChopStick {
         myNumber = ++stickCount;
     }
 
-    synchronized public boolean tryTake(int delay) throws InterruptedException {
+    private static final Lock lock = new ReentrantLock();
+
+
+    public boolean tryTake(int delay) throws InterruptedException {
         if (!iAmFree) {
-            wait(delay);
-            if (!iAmFree) // Toujours pas libre, on abandonne
+            boolean verrou = lock.tryLock(100, TimeUnit.MILLISECONDS);
+            if (!verrou) // Toujours pas libre, on abandonne
             {
                 return false; // Echec
             }
+        }
+        else{
+            lock.lock();
         }
         iAmFree = false;
         // Pas utile de faire notifyAll ici, personne n'attend qu'elle soit occupée
         return true; // Succès
     }
 
-    synchronized public void release() {
-        iAmFree = true;
-        notifyAll();
-        System.out.println("Stick " + myNumber + " Released");
+    public void release() {
+        try{
+            iAmFree = true;
+            System.out.println("Stick " + myNumber + " Released");
+        }
+        finally {
+            lock.unlock();
+        }
     }
 
     @Override
